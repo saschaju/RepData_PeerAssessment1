@@ -1,25 +1,109 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research Assignment"
+author: "Author: Sèche"
+date: "First version: 5.3.2017"
+output: html_document
 ---
 
+### Preliminary Steps
+Set knitr and R options
+```{r setup1}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+options(digits = 2)
+```
+Load necessary packages
 
-## Loading and preprocessing the data
+```{r setup2}
+library(dplyr)
+library(ggplot2)
+```
+
+Unzip and read the data
+```{r, }
+unzip(zipfile="repdata%2Fdata%2Factivity.zip")  
+dat <- read.csv("activity.csv")
+```
+### Plot histogram before imputing missing values
+Compute sum of steps by day and plot histogram
+```{r, }
+dat1 <- dat %>% group_by(date) %>% summarize(sumstepsbyday = sum(steps))
+ggplot(dat1, aes(sumstepsbyday)) + geom_histogram() + xlab("Steps per Day") + ylab("Nr. of Days")
+```
+
+### Mean and Median
+Compute the avg. nr. of steps and the median sum of steps per day
+```{r, }
+mean_raw <- mean(dat1$sumstepsbyday, na.rm = TRUE)
+median_raw <- median(dat1$sumstepsbyday, na.rm = TRUE)
+mean_raw
+median_raw
+```
+### Plot time series of activity
+Compute the avg. nr. of steps per day and plot as time series
+```{r, }
+dat2 <- dat %>% group_by(interval) %>% summarize(avgstepsbyday = mean(steps, na.rm = TRUE))
+ggplot(dat2, aes(x = interval, y = avgstepsbyday, group = 1)) +
+        geom_line() + geom_smooth() + xlab("Time") + ylab("Avg. Steps per Day")
+```
+
+### Retrieving the interval with most activity 
+Get the row with the max avg. nr. of steps
+```{r, }
+maxactiveinterval <- dat2[which.max(dat2$avgstepsbyday), ]
+maxactiveinterval
+```
+The interval with most activity is `r maxactiveinterval[1, 1]` with `r  maxactiveinterval[1, 2]` average steps per day.
+
+### Count nr. of rows with NA
+```{r, }
+na_count <- sum(is.na(dat$steps))
+na_count
+```
+There are `r na_count` rows with missing values.
+
+### Imputing missing values 
+Replace NA with average steps of corresponding interval of other days
+```{r, }
+dat3 <- dat %>%
+        group_by(interval) %>% 
+        mutate_each(funs(replace(., which(is.na(.)),
+                                 mean(., na.rm = TRUE))))
+```
+
+### Plot histogram after imputing missing values
+Compute the sum of steps per day and plot histogram after missing data treatment
+```{r, }
+dat4 <- dat3 %>% group_by(date) %>% summarize(sumstepsbyday = sum(steps))
+ggplot(dat4, aes(sumstepsbyday)) + geom_histogram() + xlab("Steps per Day") + ylab("Nr. of Days")
+```
+
+### Compute the avg. nr. of steps and the median nr. of steps per day after missing data treatment
+```{r, }
+dat5 <- dat3 %>% group_by(date) %>% summarize(sumstepsbyday = sum(steps))
+mean_clean <- mean(dat5$sumstepsbyday, na.rm = TRUE)
+median_clean <- median(dat5$sumstepsbyday, na.rm = TRUE)
+mean_clean
+median_clean
+```
+The mean didnt' change since we imputed the missing data with mean values of all other days. The median has, however, changed slighlty: From `r mean_raw`(before missing data treatment) to `r mean_clean`(after treatment).
+
+### Plot time series panel by weekday
+Convert "date" to date format
+```{r, }
+dat3$date <- as.Date(dat3$date)
+```
+
+Compute dummy variable for weekday and weekend
+```{r, }
+dat3$weekday <- ifelse(weekdays(dat3$date) == "Samstag" | weekdays(dat3$date) == "Sonntag",
+                       "weekend", "weekday")
+```
+
+Compute avg. nr. of steps per interval and weekday and plot as time series per weekday (panel) 
+```{r, }
+dat6 <- dat3 %>% group_by(weekday, interval) %>% summarize(avgbyweekday = mean(steps))
+ggplot(dat6, aes(interval, avgbyweekday)) + geom_line() + facet_grid(weekday ~.) + 
+        xlab("Interval") + ylab("Avg. Nr. of Steps")
+```
 
 
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
